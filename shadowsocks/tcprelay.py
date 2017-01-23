@@ -91,6 +91,8 @@ WAIT_STATUS_WRITING = 2
 WAIT_STATUS_READWRITING = WAIT_STATUS_READING | WAIT_STATUS_WRITING
 
 BUF_SIZE = 32 * 1024
+UP_STREAM_BUF_SIZE = 16 * 1024
+DOWN_STREAM_BUF_SIZE = 1024 * 1024
 UDP_MAX_BUF_SIZE = 65536
 
 class TCPRelayHandler(object):
@@ -716,8 +718,12 @@ class TCPRelayHandler(object):
             return
         is_local = self._is_local
         data = None
+        if is_local:
+            buf_size = UP_STREAM_BUF_SIZE
+        else:
+            buf_size = DOWN_STREAM_BUF_SIZE
         try:
-            data = self._local_sock.recv(BUF_SIZE)
+            data = self._local_sock.recv(buf_size)
         except (OSError, IOError) as e:
             if eventloop.errno_from_exception(e) in \
                     (errno.ETIMEDOUT, errno.EAGAIN, errno.EWOULDBLOCK):
@@ -791,6 +797,10 @@ class TCPRelayHandler(object):
     def _on_remote_read(self, is_remote_sock):
         # handle all remote read events
         data = None
+        if self._is_local:
+            buf_size = UP_STREAM_BUF_SIZE
+        else:
+            buf_size = DOWN_STREAM_BUF_SIZE
         try:
             if self._remote_udp:
                 if is_remote_sock:
@@ -811,7 +821,7 @@ class TCPRelayHandler(object):
                     data = struct.pack('>H', size) + data
                 #logging.info('UDP over TCP recvfrom %s:%d %d bytes to %s:%d' % (addr[0], addr[1], len(data), self._client_address[0], self._client_address[1]))
             else:
-                data = self._remote_sock.recv(BUF_SIZE)
+                data = self._remote_sock.recv(buf_size)
         except (OSError, IOError) as e:
             if eventloop.errno_from_exception(e) in \
                     (errno.ETIMEDOUT, errno.EAGAIN, errno.EWOULDBLOCK, 10035): #errno.WSAEWOULDBLOCK
